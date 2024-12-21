@@ -1,0 +1,261 @@
+---
+title: "Projet final - Laurie Labonté et Kim Thifault"
+date: "20 décembre 2024"
+output: github_document
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+#| label: load-packages
+#| message: false
+ 
+library(tidyverse)
+library(tidymodels)
+library(lubridate)
+
+```
+
+```{r}
+#| label: load-data
+#| message: false
+
+hate_crime <- read_csv("data/hate_crime.csv")
+Crime_NY <- read_csv("data/final_data.csv")
+Crime_LA <- read_csv("data/crimes_all_cleaned.csv")
+
+```
+## Introduction
+
+Dans le cadre du projet final de notre cours d’analyse de données scientifiques avec R, nous devions analyser un ensemble de données à notre choix dans le but de démontrer une compréhension et une maîtrise des techniques vues en classe. Nous avons donc décidé de choisir la thématique de la criminalité, puisque ce sujet attise un intérêt particulier pour nous. Les variables observées et analysées seront constituées des crimes à travers les années 2010 et 2019. Nous allons nous concentrer sur les types de crimes, la date du crime, le sexe, l’âge et le secteur où le crime en question a eu lieu.
+
+À première vue, l’île de Montréal était notre premier choix de secteur. Celui-ci semblait parfait, puisque nous connaissions bien les différents quartiers et il était facile pour nous de visualiser et d’acheminer les informations. Cependant, avec des recherches plus approfondies, les jeux de données proposés n’étaient pas suffisamment exhaustifs pour effectuer une conclusion complète et recherchée pour établir des liens concrets entre les variables préétablies.
+
+Alors, nous avons décidé de nous tourner vers nos voisins immédiats ; les États-Unis. Avec une population considérablement plus grande et toute aussi diversifiée que celle du Canada, il était plus simple pour nous de cibler des jeux de données avec suffisamment d’information pour poser des questions significatives et y répondre à l’aide des données fournies par ces jeux.
+
+Les villes les plus criminalisées, selon notre hypothèse, seront New York et Houston. D’abord, la ville de New York contient une population d’environ 8,1 millions d’habitants, donc deux fois plus que dans la ville Montréal . Ce qui fait d’elle la ville la plus peuplée des États-Unis et se hisse donc à la onzième place du classement des villes les plus peuplées au monde. De plus, New York est une des villes avec le plus haut taux de sans-abris  dû à plusieurs problématiques dont la crise du logement, la difficulté d’accès aux services de santé, la violence conjugale, les difficultés financières, etc.  Ce qui nous fait penser que cette ville aura un taux plus élevé qu’ailleurs dans le pays.
+
+Ensuite, pour ce qui est de Houston, c’est la ville la plus peuplé du Texas et l’état où il y a le plus grand nombre de propriétaire d’arme à feu. Avec son nombre élevé de possession d’armes, c’est alors qu’il doit y avoir une force externe qui encourage fortement les Texan(es) à s’armer autant. L’hypothèse émise est donc que cette ville doit avoir un taux de crime plus élevé que la moyenne.
+
+L’origine de la criminalité sera notre questionnement principal dans cette analyse. Nous aborderons ce sujet à l’aide de plusieurs variables qui seront mises en valeur, afin d’affirmer ou d’infirmé notre hypothèse. Nous allons concentrer notre recherche sur les différentes caractéristiques qui entourent les crimes faits dans les deux métropoles ciblées par notre recherche. Nous pourrons donc comparer ces deux villes pour analyser s’il existe une tendance entre les caractéristiques préétablies et les crimes commis.
+
+## Données
+
+Pour trouver les deux villes avec le plus haut taux de criminalité, nous avons élaboré un graphique avec le jeu de donnée « hate_crime.csv ». Il présente des informations sur la criminalité des États-Unis depuis 1991, spécifiquement sur les États du pays. Ce jeu de donnée est constitué de 28 colonnes et 209 442 lignes. Grâce à celui-ci, nous avons pu constater que ce n’était pas Texas, mais plutôt la Californie qui contenait le plus de crimes comptabilisés. Nous prendrons donc nos données sur la plus grande ville de cet état, soit Los Angeles. Pour ce qui est du deuxième état le plus criminalisé, il s’agissait de New York. Selon le même raisonnement, nous allons prendre des données sur la ville de New York. Il était donc primordial de trouver deux jeux de donnée pour entamer notre analyse. Le premier jeu de donnée est pour la ville de New York et se nomme « final_data.csv ». Il contient 13 colonnes et 1 038 051 lignes. Le deuxième est donc pour la ville de Los Angeles et se nomme « crimes_all_cleaned.csv ». Celui-ci est constitué de 26 colonnes et 7 747 417 lignes. Les jeux de donnée proviennent du site de base de donné «Kaggle». 
+
+## Analyse des données
+
+#### Première étape:
+
+Tout d'abord, nous allons limiter notre base de données sur les crimes ayant eu lieu entre 2010 et 2019.
+
+```{r}
+crime <- hate_crime |>
+  select(DATA_YEAR, STATE_ABBR) |>
+  filter(DATA_YEAR >= "2010")
+crime
+
+```
+
+Maintenant, faisons le classement des 10 états les plus criminalisés des États-Unis durant cette période.
+
+```{r}
+top10 <- crime |>
+  group_by(STATE_ABBR) |>
+  count(STATE_ABBR, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(top10)
+
+
+ggplot(top10, aes(x = STATE_ABBR, y = n, fill = n)) + geom_col()  + labs(x = "États", y = "Nombre d'actes criminels", title = "Les 10 États les plus criminalisées des États-Unis", subtitle = "Depuis 2010", fill = "quantité")
+
+```
+
+Comme nous pouvons le constater, les États de Californie et de New York sont les deux États ayant le taux de criminalité le plus élevé aux États-Unis depuis 2010. Après avoir trouvé des bases de données appropriées pour chacune des villes, nous limiterons encore une fois notre sélection aux crimes ayant eu lieu entre 2010 et 2019.
+```{r}
+
+crime_ny <- Crime_NY |>
+  filter(year >= "2010", year <= "2019")
+crime_ny
+
+crime_la <- Crime_LA |>
+  filter(occured_date >= "2010-01-01", occured_date <= "2020-01-01")
+crime_la
+
+```
+
+En premier lieu, nous trouvons intéressant de connaître la date exacte où il y a eu le plus de criminalité.
+```{r}
+
+date_ultime_LA <- crime_la |>
+  count(occured_date, sort = TRUE) |>
+  head(n = 1)
+knitr::kable(date_ultime_LA)
+
+date_ultime_NY <- crime_ny |>
+  count(day, month, year, sort = TRUE) |>
+  head(n = 1)
+knitr::kable(date_ultime_NY)
+```
+Avec ce code, nous avons réalisé que la date avec le plus haut taux de crime était le 1 janvier 2010. Nous avons donc investigué un peu, afin de comprendre la raison de ce moment. Nous n’avons malheureusement pas trouvé de source suffisamment pertinente pour établir un lien direct avec la date. Cependant, nous avons émis l’hypothèse que la nuit du jour de l’an peut être un élément déclencheur qui peut créer plusieurs batailles ou remises en question chez certains. De plus, il est possible que les autorités mettent à échéance certains dossiers le premier janvier et commencer l’année en fermant certains cas. Encore une fois, ce ne sont que des hypothèses de notre part qui sont justifiées par la récurrence de cette date dans nos analyses. 
+
+En deuxième lieu, nous voulions analyser, dans la ville de Los Angeles, les heures avec le plus haut taux de criminalités en moyenne. Ensuite, selon ces heures, nous voulions savoir quelle serait l'arme utilisée et quel serait le crime comis.
+```{r}
+heure <- crime_la |>
+  count(occured_time, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(heure)
+
+arme_heure <- crime_la|>
+  count(occured_time, weapon, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(arme_heure)
+
+crime_heure <- crime_la|>
+  count(occured_time, crime, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(crime_heure)
+
+```
+Nous pouvons constater que 12pm, 8pm ainsi que 6pm sont les trois heures où le taux de crime est le plus élevé à Los Angeles. En ce qui attrait de l'arme de prédilection lors des crimes recensés, la force brute est mise de l'avant. Il y a donc une forte tendance qui porte à croire que ce sont plutôt les combats corps à corps qui perdurent à travers les années et qui occupent le rang d'arme de propension.
+
+Dans le même ordre d'idée, nous avons voulu déterminer les heures où il y a eu le plus de crimes dans la ville de New York. Avec à ces informations, nous avons voulu déterminer le lieu de ces crimes ainsi que la description de ceux-ci.
+```{r}
+heure_ny <- crime_ny |>
+  count(hour, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(heure_ny)
+
+lieu_heure <- crime_ny |>
+  count(hour, PREM_TYP_DESC, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(lieu_heure)
+
+crime_heure_ny <- crime_ny |>
+  count(hour, OFNS_DESC, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(crime_heure_ny)
+```
+Les trois heures avec le taux de crime le plus élevé à New York sont 3pm, 6pm et 5pm. Le lieu le plus fréquent où les crimes se produisent sont dans la rue, cependant, les heures sont 8pm, 7pm et 6pm. Pour ce qui est de la description des crimes, il s'agit en majorité d'atteinte aux bien, et ce, à 12pm, 3pm et 6pm.
+
+En troisième lieu, nous trouvions intéressant d'étudier s'il y avait un lien entre la saison et le taux de criminalité à New York. Nous avons donc regroupé les mois correspondant aux saisons pour faire le recensement des crimes durant ces périodes.
+```{r}
+saison_ny <- crime_ny |>
+  mutate(saison = case_when(month %in% c(4,5,6) ~ "Printemps", month %in% c(7,8,9) ~ "Été", month %in% c(10,11,12) ~ "Automne", month %in% c(1,2,3) ~ "Hiver")) |>
+  count(saison, sort = TRUE)
+knitr::kable(saison_ny)
+```
+
+
+En quatrième lieu, nous voulions examiner les données en fonction des secteurs de New York et de Los Angeles. Nous avons tout d'abord compté le nombre de crime en fonction des quartiers de New York, et ensuite, nous avons analysé la quantité de crime en fonction de chaque groupe d'age.
+```{r}
+
+area <- crime_ny |>
+  count(BORO_NM, sort = TRUE)
+knitr::kable(area)
+
+ggplot(area, aes(x = BORO_NM, y = n, fill = n)) + geom_col() + labs(x = "Quartiers", y = "Nombre d'actes criminels", title = "Criminalité en fonction des secteurs", subtitle = "New York", fill = "quantité")
+
+```
+
+
+```{r}
+age <- crime_ny |>
+  select(VIC_AGE_GROUP, BORO_NM, month) |>
+  filter(VIC_AGE_GROUP != "UNKNOWN")
+age
+
+ggplot(age, aes(x = VIC_AGE_GROUP, fill = BORO_NM)) + geom_bar(position = "fill") + labs(x = "Âge des victimes", y = "Nombre d'actes criminels", title = "Âge des victimes en fonction des secteurs", subtitle = "New York", fill = "secteurs")
+```
+Dans ce graphique, nous constatons que les proportions sont relativement semblables par rapport à l’âge des victimes dans les différents secteurs. Le secteur Staten Island est le moins touché par les crimes, tandis que Brooklyn est le plus touché. Le groupe d’âge moins de 18 ans est aussi plus nombreux dans le secteur de Brooklyn.
+
+Pour ce qui est des secteurs de Los Angeles, nous nous interessions également à l'âge des victimes dans chaque quartier, mais plus précisément de la différence entre les victimes de sexes féminins et masculins.
+```{r}
+area_la <- crime_la |>
+  count(area, sort = TRUE) |>
+  head(n = 10)
+knitr::kable(area_la)
+  
+
+ggplot(area_la, aes(x = area, y = n, fill = n)) + geom_col() + labs(x = "Secteurs", y = "Nombre d'actes criminels", title = "Criminalité en fonction des secteurs", subtitle = "Los Angeles", fill = "quantité")
+```
+
+```{r}
+age_la <- crime_la |>
+  select(area, victim_sex, victim_age) |>
+  filter(victim_sex != "N", victim_sex != "H", victim_sex != "X") |>
+  filter(area =="77th Street" | area == "Central" | area == "Southwest" | area == "Southeast" | area == "Newton" | area == "Hollywood")
+age_la
+
+ggplot(age_la, aes(x = victim_age, y = victim_sex)) + geom_violin() + facet_wrap(~area) + labs(x = "Âge de la victime", y = "Sexe de la victime", title = "Âge et sexe des victimes en fonction du secteur", subtitle = "Los Angeles")
+```
+
+Dans cette visualisation, nous pouvons constater que les femmes de 25 ans sont le groupe d’âge le plus touchée, tandis que chez les hommes, on peut voir une plus grande dispersion, mais quand même près de 25 ans aussi.
+
+En dernier lieu, nous voulions effectuer un test d'hypothèse afin de vérifier l'âge moyen des victimes de Los Angeles (nous utiliserons un niveau de signification de 0,05). Nous poserons notre hypothèse nulle comme étant que l'âge moyen des victimes est de 33 ans.
+```{r}
+test<- crime_la |>
+  specify(response = victim_age) |>
+  hypothesize(null = "point", mu = 33) |>
+  generate(reps = 500, type = "bootstrap") |>
+  calculate(stat = "mean")
+test
+
+obs_mean <- crime_la |>
+  specify(response = victim_age) |>
+  calculate(stat = "mean")
+obs_mean
+
+test|>
+  visualize() + shade_p_value(obs_stat = obs_mean, direction = "two-sided")
+
+```
+
+Dans le graphique ci-dessus, la zone de couleur rose représente les valeurs qui sont plus extrêmes que notre statistique observée. La probabilité de tomber dans cette zone est la valeur p de notre test d’hypothèses. Ainsi, puisque la zone ombrée est grande, la valeur p est égaelement grande, et il sera plus probable de ne pas rejeter l’hypothèse nulle. Calculons donc le p exact.
+
+```{r}
+p_value <- test |>
+  get_p_value(obs_stat = obs_mean, direction = "two-sided")
+p_value
+```
+La valeur exacte de p est égale à 0.656. Puisque cette valeur est supérieure au niveau de signification préétablie au début du test, soit 0.05, nous ne rejettons pas l'hypothèse nulle. Ainsi, nous pouvons conclure que l'âge moyen des victime est de 33 ans. Finalement, visualisons l'intervalle de confiance pour notre statistique. 
+
+```{r}
+boot_dist <- crime_la |>
+  specify(response = victim_age) |>
+  generate(reps = 500, type = "bootstrap") |>
+  calculate(stat = "mean")
+
+ci <- boot_dist |>
+  get_confidence_interval(point_estimate = obs_mean, level = .95, type = "se")
+ci
+
+boot_dist |>
+  visualize() +
+  shade_confidence_interval(endpoints = ci)
+
+```
+
+
+## Discussion
+
+Pour conclure ce projet, nous avons pu effectuer une analyse exhaustive sur les différents aspects du crime aux États-Unis et plus précisément, dans la ville de New York et la ville de Los Angeles. 
+
+Malheureusement, nous n’avions pas les mêmes données fournies par les jeux de données. Celui de Los Angeles était un peu moins complet que celui de New York, puisqu’il ne présentait pas l’âge de l’agresseur et les dates étaient condensées par mois et non par jour. Donc, nous n’avons pas pu faire une comparaison parfaite entre les deux endroits, mais nous avons quand même rassembler suffisamment d’informations pour comparer certains aspects qui étaient très pertinents pour notre analyse (âge de la victime, type d’arme utilisé, lieu, etc.). De plus, les dates recensées peuvent être tout autant le moment où le crime a eu lieu ou bien le moment où les autorités sont arrivées sur les lieux. Cela étant dit, nous avons estimé que l’intervalle entre les deux ne devaient pas être énormes, donc nous n’avons pas pris en compte ce problème.
+
+Grâce aux informations assimilés dans les jeux de données et les explications tout au long des codes et des graphiques, nous avons pu constater qu’il existe bel et bien un lien plus ou moins étroit entre les caractéristiques entourant les crimes d’une ville à une autre. Les moyennes d’âge, les types d’armes utilisés et les dates ayant le plus haut taux de criminalité se ressemblaient beaucoup. Nous pouvons tirer la conclusion que les deux villes, bien que situées à l’opposé du continent, se ressemblent énormément que ce soit au niveau qualitatif que quantitatif, mise à part des secteurs bien évidemment.
+
+
+
+## Bibliographie
+
+1) https://worldpopulationreview.com/us-cities/new-york/new-york
+2) https://www.security.org/resources/homeless-statistics/ 
+3) https://developmentalpolitics.org/platform-of-policy-recommendations/homelessness-in-the-u-s/?gadsource=1&gclid=Cj0KCQiAx9q6BhCDARIsACwUxu7TVseNNyTqiciXjNYTsXqm8B998agMSXHUbD3UCbFD4N7c9dxeWeYaAuacEALw_wcB 
+4) https://worldpopulationreview.com/us-cities/texas 
+5) https://www.cbsnews.com/pictures/gun-ownership-rates-by-state/52/ 
